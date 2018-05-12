@@ -40,7 +40,14 @@ def build_dataset(args):
 
     nlp = spacy.load('en', create_pipeline=custom_pipeline)
     gen_a,gen_b = itertools.tee(data_generator(args.input),2)
+
     data = [(z["reviewerID"],z["asin"],tok,z["overall"]) for z,tok in zip(tqdm((z for z in gen_a),desc="reading file"),nlp.pipe((x["reviewText"] for x in gen_b), batch_size=1000000, n_threads=8))]
+    # Filter out empty reviews
+    pre_filter_len = len(data)
+    data = [t for t in data if len(t[2]) > 0]
+    post_filter_len = len(data)
+    print('Filter {} reviews with 0 length'
+          .format(pre_filter_len - post_filter_len))
 
     print(data[0])
     shuffle(data)
