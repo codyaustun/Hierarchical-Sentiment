@@ -39,9 +39,23 @@ def build_dataset(args):
     print("-> Building {} random splits".format(args.nb_splits))
 
     nlp = spacy.load('en', create_pipeline=custom_pipeline)
-    gen_a,gen_b = itertools.tee(data_generator(args.input),2)
+    # Create two copies for json records for extra processing
+    records, copy_of_records = itertools.tee(data_generator(args.input),2)
 
-    data = [(z["reviewerID"],z["asin"],tok,z["overall"]) for z,tok in zip(tqdm((z for z in gen_a),desc="reading file"),nlp.pipe((x["reviewText"] for x in gen_b), batch_size=1000000, n_threads=8))]
+    # Tokenize raw review text
+    reviews = (record["reviewText"] for record in copy_of_records)
+    review_tokens = nlp.pipe(reviews, batch_size=1000000, n_threads=8)
+    data = []
+    for record, tokens in zip(records, review_tokens):
+        data.append(
+            (
+                record['reviewerID'],
+                record['asin'],
+                tokens,
+                record['overall']
+            )
+        )
+
     # Filter out empty reviews
     pre_filter_len = len(data)
     data = [t for t in data if len(t[2]) > 0]
