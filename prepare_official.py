@@ -2,14 +2,11 @@ import os
 import argparse
 import pickle as pkl
 import itertools
-from collections import Counter, namedtuple
+from collections import Counter
 
 import spacy
 import pandas as pd
 from tqdm import tqdm
-
-
-Sample = namedtuple('Sample', ['rating', 'review'])
 
 
 def to_array_comp(doc):
@@ -49,11 +46,11 @@ def build_tuples(path, batch_size=10_000, n_threads=8):
     review_tokens = (subject + body for subject, body in zip(subject_tokens, body_tokens))  # noqa: E501
     review_tokens = tqdm(review_tokens, desc="Reviews", total=len(df))
 
-    data = [Sample(*tuple_) for tuple_ in zip(ratings, review_tokens)]
+    data = list(zip(ratings, review_tokens))
 
     # Filter out empty reviews
     pre_filter_len = len(data)
-    data = [sample for sample in data if len(sample.review) > 0]
+    data = [sample for sample in data if len(sample[1]) > 0]
     post_filter_len = len(data)
     print('--> Filter {} reviews with 0 length'
           .format(pre_filter_len - post_filter_len))
