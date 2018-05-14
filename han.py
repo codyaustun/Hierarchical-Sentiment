@@ -22,7 +22,7 @@ def save(net,dic,path):
     Saves a model's state and it's embedding dic by piggybacking torch's save function
     """
     dict_m = net.state_dict()
-    dict_m["word_dic"] = dic    
+    dict_m["word_dic"] = dic
     torch.save(dict_m,path)
 
 
@@ -82,7 +82,7 @@ def train(epoch,net,optimizer,dataset,criterion,cuda):
             mseloss = F.mse_loss(val_i,data[1].float())
             mean_rmse += math.sqrt(mseloss.data[0])
             mean_mse += mseloss.data[0]
-            loss =  criterion(out, data[1]) 
+            loss =  criterion(out, data[1])
             epoch_loss += loss.data[0]
             loss.backward()
             optimizer.step()
@@ -103,7 +103,7 @@ def test(epoch,net,dataset,cuda,msg="Evaluating"):
     mean_mse = 0
     mean_rmse = 0
     data_tensors = new_tensors(3,cuda,types={0:torch.LongTensor,1:torch.LongTensor,2:torch.LongTensor}) #data-tensors
-    
+
     with tqdm(total=len(dataset),desc=msg) as pbar:
         for iteration, (batch_t,r_t,sent_order,ls,lr,review) in enumerate(dataset):
             data = tuple2var(data_tensors,(batch_t,r_t,sent_order))
@@ -128,10 +128,12 @@ def test(epoch,net,dataset,cuda,msg="Evaluating"):
 def load(args):
 
     datadict = pkl.load(open(args.filename,"rb"))
-    data_tl,(trainit,valit,testit) = FMTL_train_val_test(datadict["data"],datadict["splits"],args.split,validation=0.5,rows=datadict["rows"])
+    data_tl, (trainit, valit, testit) = FMTL_train_val_test(
+        datadict["data"], datadict["splits"], args.split,
+        validation=args.validation, rows=datadict["rows"])
 
     rating_mapping = data_tl.get_field_dict("rating",key_iter=trainit) #creates class mapping
-    data_tl.set_mapping("rating",rating_mapping) 
+    data_tl.set_mapping("rating",rating_mapping)
 
     if args.load:
         state = torch.load(args.load)
@@ -139,12 +141,12 @@ def load(args):
     else:
         if args.emb:
             tensor,wdict = load_embeddings(args.emb,offset=2)
-        else:     
+        else:
             wdict = data_tl.get_field_dict("review",key_iter=trainit,offset=2, max_count=args.max_feat, iter_func=(lambda x: (w for s in x for w in s )))
 
         wdict["_pad_"] = 0
         wdict["_unk_"] = 1
-    
+
     if args.max_words > 0 and args.max_sents > 0:
         print("==> Limiting review and sentence length: ({} sents of {} words) ".format(args.max_sents,args.max_words))
         data_tl.set_mapping("review",(lambda f:[[wdict.get(w[:args.max_words],1) for w in s[:args.max_sents]] for s in f]))
@@ -184,7 +186,7 @@ def main(args):
     dataloader_valid = DataLoader(data_tl.indexed_iter(val_set), batch_size=args.b_size, shuffle=False,  num_workers=3, collate_fn=tuple_batch)
     dataloader_test = DataLoader(data_tl.indexed_iter(test_set), batch_size=args.b_size, shuffle=False, num_workers=3, collate_fn=tuple_batch,drop_last=True)
 
-    criterion = torch.nn.CrossEntropyLoss()      
+    criterion = torch.nn.CrossEntropyLoss()
 
     if args.cuda:
         net.cuda()
@@ -213,26 +215,27 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Hierarchical Attention Networks for Document Classification')
-    
-    parser.add_argument("--emb-size",type=int,default=200)
-    parser.add_argument("--hid-size",type=int,default=100)
 
-    parser.add_argument("--max-feat", type=int,default=10000)
-    parser.add_argument("--epochs", type=int,default=10)
-    parser.add_argument("--clip-grad", type=float,default=1)
+    parser.add_argument("--emb-size", type=int, default=200)
+    parser.add_argument("--hid-size", type=int, default=100)
+
+    parser.add_argument("--max-feat", type=int, default=10000)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--clip-grad", type=float, default=1)
     parser.add_argument("--lr", type=float, default=0.01)
-    parser.add_argument("--momentum",type=float,default=0.9)
+    parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--b-size", type=int, default=32)
+    parser.add_argument("--validation", type=float, default=0.1)
 
     parser.add_argument("--emb", type=str)
-    parser.add_argument("--max-words", type=int,default=-1)
-    parser.add_argument("--max-sents",type=int,default=-1)
+    parser.add_argument("--max-words", type=int, default=-1)
+    parser.add_argument("--max-sents", type=int, default=-1)
 
     parser.add_argument("--split", type=int, default=0)
     parser.add_argument("--load", type=str)
     parser.add_argument("--save", type=str)
     parser.add_argument("--snapshot", action='store_true')
-    parser.add_argument("--prebuild",action="store_true")
+    parser.add_argument("--prebuild", action="store_true")
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
 
     parser.add_argument("--output", type=str)
