@@ -97,10 +97,10 @@ def FMTL_train_val_test(datatuples,splits,split_num=0,validation=0.5,rows=None):
     if validation > 0:
 
         if 0 < validation < 1:
-            val_len = int(validation * len(test))
+            val_len = int(validation * len(train))
 
-        validation = test[-val_len:]
-        test = test[:-val_len]
+        validation = train[-val_len:]
+        train = train[:-val_len]
 
     else:
         validation = []
