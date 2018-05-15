@@ -238,16 +238,24 @@ def main(args):
         os.makedirs(run_dir)
     save_config(config, run_dir)
 
-    train_results_file = os.path.join(run_dir, 'train_results.csv')
-    valid_results_file = os.path.join(run_dir, 'valid_results.csv')
-    test_results_file = os.path.join(run_dir, 'test_results.csv')
-
     data_tl, (train_set, val_set, test_set), net, wdict = load(args)
 
 
-    dataloader = DataLoader(data_tl.indexed_iter(train_set), batch_size=args.b_size, shuffle=True, num_workers=3, collate_fn=tuple_batch,pin_memory=True)
-    dataloader_valid = DataLoader(data_tl.indexed_iter(val_set), batch_size=args.b_size, shuffle=False,  num_workers=3, collate_fn=tuple_batch)
-    dataloader_test = DataLoader(data_tl.indexed_iter(test_set), batch_size=args.b_size, shuffle=False, num_workers=3, collate_fn=tuple_batch,drop_last=True)
+    train_results_file = os.path.join(run_dir, 'train_results.csv')
+    test_results_file = os.path.join(run_dir, 'test_results.csv')
+    dataloader = DataLoader(
+        data_tl.indexed_iter(train_set), batch_size=args.b_size, shuffle=True,
+        num_workers=3, collate_fn=tuple_batch, pin_memory=args.cuda)
+    dataloader_test = DataLoader(
+        data_tl.indexed_iter(test_set), batch_size=args.b_size, shuffle=False,
+        num_workers=3, collate_fn=tuple_batch, pin_memory=args.cuda)
+
+    if args.validation > 0:
+        valid_results_file = os.path.join(run_dir, 'valid_results.csv')
+        dataloader_valid = DataLoader(
+            data_tl.indexed_iter(val_set), batch_size=args.b_size,
+            shuffle=False, num_workers=3, collate_fn=tuple_batch,
+            pin_memory=args.cuda)
 
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -271,9 +279,9 @@ def main(args):
             filename = os.path.join(run_dir, 'checkpoint_{}.t7'.format(epoch))
             print("snapshot of model saved as {}".format(filename))
             save(net, wdict, filename)
-
-        test(epoch, net, dataloader_valid, args.cuda, msg="Validation",
-             tracking=valid_results_file)
+        if args.validation > 0:
+            test(epoch, net, dataloader_valid, args.cuda, msg="Validation",
+                 tracking=valid_results_file)
         test(epoch, net, dataloader_test, args.cuda,
              tracking=test_results_file)
 
