@@ -134,7 +134,6 @@ def test(epoch, net, dataset, cuda, msg="Evaluating", tracking=None):
     net.eval()
     epoch_loss = 0
     ok_all = 0
-    pred = 0
     skipped = 0
     mean_mse = 0
     mean_rmse = 0
@@ -153,7 +152,6 @@ def test(epoch, net, dataset, cuda, msg="Evaluating", tracking=None):
             mean_mse += mseloss.data[0]
 
             ok_all += per.data[0]
-            pred+=1
 
             end = datetime.now()
             if tracking is not None:
@@ -169,11 +167,11 @@ def test(epoch, net, dataset, cuda, msg="Evaluating", tracking=None):
                 save_result(result, tracking)
 
             pbar.update(1)
-            pbar.set_postfix({"acc":ok_all/pred, "skipped":skipped,"mseloss":mean_mse/(iteration+1),"rmseloss":mean_rmse/(iteration+1)})
+            pbar.set_postfix({"acc":ok_all/(iteration+1), "skipped":skipped,"mseloss":mean_mse/(iteration+1),"rmseloss":mean_rmse/(iteration+1)})
             start = datetime.now()
 
 
-    print("===> {} Complete:  {}% accuracy".format(msg,ok_all/pred))
+    print("===> {} Complete:  {}% accuracy".format(msg, ok_all / (iteration + 1)))
 
 
 def load(args):
