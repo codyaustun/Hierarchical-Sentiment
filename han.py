@@ -118,7 +118,7 @@ def train(epoch, net, optimizer, dataset, criterion, cuda, tracking=None):
                 result['batch_size'] = len(lr)
                 result['acc'] = per.data[0]
                 result['mse'] = mseloss.data[0]
-                result['rmse'] = math.sqrt(mseless.data[0])
+                result['rmse'] = math.sqrt(mseloss.data[0])
                 result['loss'] = loss.data[0]
                 save_result(result, tracking)
 
@@ -130,7 +130,7 @@ def train(epoch, net, optimizer, dataset, criterion, cuda, tracking=None):
 
 
 
-def test(epoch, net, dataset, cuda, msg="Evaluating", trackning=None):
+def test(epoch, net, dataset, cuda, msg="Evaluating", tracking=None):
     net.eval()
     epoch_loss = 0
     ok_all = 0
@@ -165,7 +165,7 @@ def test(epoch, net, dataset, cuda, msg="Evaluating", trackning=None):
                 result['batch_size'] = len(lr)
                 result['acc'] = per.data[0]
                 result['mse'] = mseloss.data[0]
-                result['rmse'] = math.sqrt(mseless.data[0])
+                result['rmse'] = math.sqrt(mseloss.data[0])
                 save_result(result, tracking)
 
             pbar.update(1)
