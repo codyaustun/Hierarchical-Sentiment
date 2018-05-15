@@ -193,7 +193,9 @@ def main(args):
 
     print("-"*20)
 
-    optimizer = optim.Adam(net.parameters())
+    optimizer = optim.SGD(net.parameters(), lr=args.lr,
+                          momentum=args.momentum,
+                          weight_decay=args.weight_decay)
     torch.nn.utils.clip_grad_norm(net.parameters(), args.clip_grad)
 
     for epoch in range(1, args.epochs + 1):
@@ -224,6 +226,7 @@ if __name__ == '__main__':
     parser.add_argument("--clip-grad", type=float, default=1)
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--b-size", type=int, default=32)
     parser.add_argument("--validation", type=float, default=0.1)
 
