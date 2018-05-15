@@ -53,7 +53,7 @@ def tuple_batch(l):
     - Split reviews by sentences which are reordered by length
     - Build sentence ordering index to extract each sentences in training loop
     """
-    _,_,review,rating = zip(*l)
+    rating, review = zip(*l)
     r_t = torch.Tensor(rating).long()
     list_rev = review
 
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Hierarchical Attention Networks for Document Classification')
 
     parser.add_argument("--emb-size", type=int, default=200)
-    parser.add_argument("--hid-size", type=int, default=100)
+    parser.add_argument("--hid-size", type=int, default=50)
 
     parser.add_argument("--max-feat", type=int, default=10000)
     parser.add_argument("--epochs", type=int, default=10)
