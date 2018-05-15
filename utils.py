@@ -105,7 +105,7 @@ def FMTL_train_val_test(datatuples,splits,split_num=0,validation=0.5,rows=None):
     else:
         validation = []
 
-    idxs = (train,test,validation)
+    idxs = (train, validation, test)
     fmtl = FMTL(datatuples,rows)
     iters = idxs
 
