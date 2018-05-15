@@ -1,7 +1,10 @@
 import argparse
 import pickle as pkl
-from tqdm import tqdm
 import math
+import sys
+import os
+import json
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -10,11 +13,12 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
 import torch.nn.functional as F
+from tqdm import tqdm
+
 from Nets import NSCUPA, HAN
 from Data import TuplesListDataset, Vectorizer
 from fmtl import FMTL
 from utils import *
-import sys
 
 
 def save(net,dic,path):
@@ -24,6 +28,13 @@ def save(net,dic,path):
     dict_m = net.state_dict()
     dict_m["word_dic"] = dic
     torch.save(dict_m,path)
+
+
+def save_config(config, run_dir):
+    path = os.path.join(run_dir, "config_{}.json".format(config['timestamp']))
+    with open(path, 'w') as config_file:
+        json.dump(config, config_file)
+        config_file.write('\n')
 
 
 def tuple_batch(l):
@@ -177,8 +188,18 @@ def load(args):
 
 
 def main(args):
-
     print(32*"-"+"\nHierarchical Attention Network:\n" + 32*"-")
+
+    config = {k: v for k, v in args.__dict__.items()}
+    config['timestamp'] = "{:.0f}".format(datetime.utcnow().timestamp())
+    config['local_timestamp'] = str(datetime.now())
+    run_dir = "./run/han/{}".format(config['timestamp'])
+    print("Saving config and results to {}".format(run_dir))
+
+    if not os.path.exists(run_dir) and run_dir != '':
+        os.makedirs(run_dir)
+    save_config(config, run_dir)
+
     data_tl, (train_set, val_set, test_set), net, wdict = load(args)
 
 
@@ -190,6 +211,7 @@ def main(args):
 
     if args.cuda:
         net.cuda()
+        criterion.cuda()
 
     print("-"*20)
 
@@ -203,15 +225,12 @@ def main(args):
         train(epoch,net,optimizer,dataloader,criterion,args.cuda)
 
         if args.snapshot:
-            print("snapshot of model saved as {}".format(args.save+"_snapshot"))
-            save(net,wdict,args.save+"_snapshot")
+            filename = os.path.join(run_dir, 'checkout_{}.t7'.format(epoch))
+            print("snapshot of model saved as {}".format(filename))
+            save(net, wdict, filename)
 
         test(epoch,net,dataloader_valid,args.cuda,msg="Validation")
         test(epoch,net,dataloader_test,args.cuda)
-
-    if args.save:
-        print("model saved to {}".format(args.save))
-        save(net,wdict,args.save)
 
 
 if __name__ == '__main__':
@@ -236,12 +255,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--split", type=int, default=0)
     parser.add_argument("--load", type=str)
-    parser.add_argument("--save", type=str)
     parser.add_argument("--snapshot", action='store_true')
     parser.add_argument("--prebuild", action="store_true")
     parser.add_argument('--cuda', action='store_true', help='use CUDA')
 
-    parser.add_argument("--output", type=str)
     parser.add_argument('filename', type=str)
     args = parser.parse_args()
 
