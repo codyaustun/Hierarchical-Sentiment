@@ -5,6 +5,7 @@ import sys
 import os
 import json
 from datetime import datetime
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
@@ -35,6 +36,14 @@ def save_config(config, run_dir):
     with open(path, 'w') as config_file:
         json.dump(config, config_file)
         config_file.write('\n')
+
+
+def save_result(result, path):
+    write_heading = not os.path.exists(path)
+    with open(path, mode='a') as out:
+        if write_heading:
+            out.write(",".join([str(k) for k, v in result.items()]) + '\n')
+        out.write(",".join([str(v) for k, v in result.items()]) + '\n')
 
 
 def tuple_batch(l):
@@ -72,7 +81,7 @@ def tuple_batch(l):
     return batch_t,r_t,sent_order,ls,lr,review
 
 
-def train(epoch,net,optimizer,dataset,criterion,cuda):
+def train(epoch, net, optimizer, dataset, criterion, cuda, tracking=None):
     net.train()
     epoch_loss = 0
     mean_mse = 0
@@ -81,6 +90,7 @@ def train(epoch,net,optimizer,dataset,criterion,cuda):
     data_tensors = new_tensors(3,cuda,types={0:torch.LongTensor,1:torch.LongTensor,2:torch.LongTensor}) #data-tensors
 
     with tqdm(total=len(dataset),desc="Training") as pbar:
+        start = datetime.now()
         for iteration, (batch_t,r_t,sent_order,ls,lr,review) in enumerate(dataset):
 
             data = tuple2var(data_tensors,(batch_t,r_t,sent_order))
@@ -98,14 +108,29 @@ def train(epoch,net,optimizer,dataset,criterion,cuda):
             loss.backward()
             optimizer.step()
 
+            end = datetime.now()
+            if tracking is not None:
+                result = OrderedDict()
+                result['timestamp'] = datetime.now()
+                result['batch_duration'] = end - start
+                result['epoch'] = epoch
+                result['batch'] = iteration
+                result['batch_size'] = len(lr)
+                result['acc'] = per.data[0]
+                result['mse'] = mseloss.data[0]
+                result['rmse'] = math.sqrt(mseless.data[0])
+                result['loss'] = loss.data[0]
+                save_result(result, tracking)
+
             pbar.update(1)
             pbar.set_postfix({"acc":ok_all/(iteration+1),"CE":epoch_loss/(iteration+1),"mseloss":mean_mse/(iteration+1),"rmseloss":mean_rmse/(iteration+1)})
+            start = datetime.now()
 
     print("===> Epoch {} Complete: Avg. Loss: {:.4f}, {}% accuracy".format(epoch, epoch_loss /len(dataset),ok_all/len(dataset)))
 
 
 
-def test(epoch,net,dataset,cuda,msg="Evaluating"):
+def test(epoch, net, dataset, cuda, msg="Evaluating", trackning=None):
     net.eval()
     epoch_loss = 0
     ok_all = 0
@@ -116,6 +141,7 @@ def test(epoch,net,dataset,cuda,msg="Evaluating"):
     data_tensors = new_tensors(3,cuda,types={0:torch.LongTensor,1:torch.LongTensor,2:torch.LongTensor}) #data-tensors
 
     with tqdm(total=len(dataset),desc=msg) as pbar:
+        start = datetime.now()
         for iteration, (batch_t,r_t,sent_order,ls,lr,review) in enumerate(dataset):
             data = tuple2var(data_tensors,(batch_t,r_t,sent_order))
             out  = net(data[0],data[2],ls,lr)
@@ -129,8 +155,22 @@ def test(epoch,net,dataset,cuda,msg="Evaluating"):
             ok_all += per.data[0]
             pred+=1
 
+            end = datetime.now()
+            if tracking is not None:
+                result = OrderedDict()
+                result['timestamp'] = datetime.now()
+                result['batch_duration'] = end - start
+                result['epoch'] = epoch
+                result['batch'] = iteration
+                result['batch_size'] = len(lr)
+                result['acc'] = per.data[0]
+                result['mse'] = mseloss.data[0]
+                result['rmse'] = math.sqrt(mseless.data[0])
+                save_result(result, tracking)
+
             pbar.update(1)
             pbar.set_postfix({"acc":ok_all/pred, "skipped":skipped,"mseloss":mean_mse/(iteration+1),"rmseloss":mean_rmse/(iteration+1)})
+            start = datetime.now()
 
 
     print("===> {} Complete:  {}% accuracy".format(msg,ok_all/pred))
@@ -200,6 +240,10 @@ def main(args):
         os.makedirs(run_dir)
     save_config(config, run_dir)
 
+    train_results_file = os.path.join(run_dir, 'train_results.csv')
+    valid_results_file = os.path.join(run_dir, 'valid_results.csv')
+    test_results_file = os.path.join(run_dir, 'test_results.csv')
+
     data_tl, (train_set, val_set, test_set), net, wdict = load(args)
 
 
@@ -222,15 +266,18 @@ def main(args):
 
     for epoch in range(1, args.epochs + 1):
         print("\n-------EPOCH {}-------".format(epoch))
-        train(epoch,net,optimizer,dataloader,criterion,args.cuda)
+        train(epoch,net,optimizer,dataloader,criterion,args.cuda,
+              tracking=train_results_file)
 
         if args.snapshot:
-            filename = os.path.join(run_dir, 'checkout_{}.t7'.format(epoch))
+            filename = os.path.join(run_dir, 'checkpoint_{}.t7'.format(epoch))
             print("snapshot of model saved as {}".format(filename))
             save(net, wdict, filename)
 
-        test(epoch,net,dataloader_valid,args.cuda,msg="Validation")
-        test(epoch,net,dataloader_test,args.cuda)
+        test(epoch, net, dataloader_valid, args.cuda, msg="Validation",
+             tracking=valid_results_file)
+        test(epoch, net, dataloader_test, args.cuda,
+             tracking=test_results_file)
 
 
 if __name__ == '__main__':
